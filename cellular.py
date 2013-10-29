@@ -21,11 +21,11 @@ screen.fill(background_color)
 scale = 0.5 
 cellDim = int(screen_size * scale)
 stepTime = 25
-randomlyGenerate = False
+randomlyGenerate = True
 gridPixels = screen_size/cellDim
 stepDelay = False
 showPicture = True
-autoGenerate = True
+autoGenerate = False
 
 # Randomly row w/ even distribution
 def getFirstRow():
@@ -41,14 +41,9 @@ def getFirstRow():
 # Draws a row, given the row & rowId
 def automatonDrawRow(row,rowId):
 	for i in range(cellDim):
-		# draw black cell if 0
+		# draw white cell if 0
 		if(row[i]==0):
 			pygame.draw.rect(screen,(255,255,255), (i*gridPixels,rowId*gridPixels,gridPixels,gridPixels), 0)
-
-		# draw white cell if 1
-		else:
-			pygame.draw.rect(screen,(0,0,0), (i*gridPixels,rowId*gridPixels,gridPixels,gridPixels), 0)
-	return rowId < cellDim 
 
 # Run the Automaton
 def runAutomaton(ruleNum):
@@ -169,13 +164,13 @@ def main(ruleNum):
 		 		if event.type == pygame.QUIT:
 		 			running=False
 
-
-		 				
+# Script to auto-generate 256 images 
 def generateRuleImages():
 	for i in range(256):
 		print i
 		main(i)
 
+# Finds the entropy of a given ruleId
 def findEntropy(ruleId):
 	grid=runAutomaton(ruleId)
 	blackCells=float(0)
@@ -191,12 +186,14 @@ def findEntropy(ruleId):
 	
 	return e
 
+# Find avg entropy of a given rule
 def findMeanEntropy(ruleId,numTimes):
 	values = []
 	for i in range(numTimes):
 		values.append(findEntropy(ruleId))
 	return (sum(values)/len(values))
 
+# Generates a report of all 256 entropies
 def generateEntropyReport():
 	file = open("entropy.txt", "w")
 	for rule in range(256):
@@ -204,4 +201,4 @@ def generateEntropyReport():
 		file.write(str(entropy)+"\n")
 	file.close()
 
-generateRuleImages()
+main(110)

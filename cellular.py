@@ -9,48 +9,59 @@ import math
 
 from pygame.locals import *
 
+# Program Parameters	
+ringSize = 61
+numIterations = 500
+stepTime = 25
+randomlyGenerate = True
+cellPixelSize = 2
+stepDelay = False
+showPicture = True
+autoGenerate = False
+fixedRandom = True
+debugEnabled = True
+
 # Screen Initialization
-screen_size = 500
+screen_height = cellPixelSize*numIterations
+screen_width = cellPixelSize*ringSize
 background_color = (0,0,0)
-(width, height) = (screen_size,screen_size)
+(width, height) = (screen_width,screen_height)
 screen = pygame.display.set_mode((width, height))
 pygame.display.set_caption('Cellular Automaton')
 screen.fill(background_color)
 
-# Program Parameters
-scale = 0.5 
-cellDim = int(screen_size * scale)
-stepTime = 25
-randomlyGenerate = True
-gridPixels = screen_size/cellDim
-stepDelay = False
-showPicture = True
-autoGenerate = False
+# Debug function. Only prints if debug enabled.
+def debug(s):
+	if(debugEnabled):
+		print s
 
 # Randomly row w/ even distribution
 def getFirstRow():
 	# insert 10 0's and 1's, then shuffle them
 	row=[]	
-	for i in range(cellDim/2):
+	for i in range(ringSize):
 		row.append(1)
 		row.append(0)
 	random.shuffle(row)
 
 	return row
 
+# Global Fixed Initial State (for more accurate avgs entropies...)
+fixedRandomInitialState = getFirstRow()
+
 # Draws a row, given the row & rowId
 def automatonDrawRow(row,rowId):
-	for i in range(cellDim):
+	for i in range(ringSize):
 		# draw white cell if 0
 		if(row[i]==0):
-			pygame.draw.rect(screen,(255,255,255), (i*gridPixels,rowId*gridPixels,gridPixels,gridPixels), 0)
+			pygame.draw.rect(screen,(255,255,255), (i*cellPixelSize,rowId*cellPixelSize,cellPixelSize,cellPixelSize), 0)
 
 # Run the Automaton
 def runAutomaton(ruleNum):
 	# initialize variables
-	grid = [[0 for x in xrange(cellDim)] for x in xrange(cellDim)] 
+	grid = [[0 for x in xrange(ringSize)] for x in xrange(numIterations)] 
 	base = True
-	mod = cellDim
+	mod = ringSize
 
 	# format binary values for rule
 	ruleBits = bin(ruleNum)
@@ -58,10 +69,17 @@ def runAutomaton(ruleNum):
 	padding = ['0']*(8-len(ruleBits))
 	ruleBits = ''.join(padding) + ruleBits
 
+	# if we want to randomly generate the initial state
 	if(randomlyGenerate):
-		grid[0] = getFirstRow()
+		# if first state should be fixed (when calculate avg)
+		if(fixedRandom):
+			grid[0] = fixedRandomInitialState
+
+		# if we want to generate a new first row every run
+		else:
+			grid[0] = getFirstRow()
 	else:
-		grid[0] = [0 for x in xrange(cellDim)]
+		grid[0] = [0 for x in xrange(ringSize)]
 		grid[0][(mod/2)-1]=1
 	
 	# iterate through rows in a grid
@@ -73,7 +91,7 @@ def runAutomaton(ruleNum):
 
 		#for row > 1 
 		else:	
-			for x in range(cellDim):
+			for x in range(ringSize):
 				# get bits p,q,r
 				p = prevRow[(x-1)%mod]
 				q = prevRow[(x)%mod]
@@ -115,7 +133,7 @@ def generateImgDirectory(ruleNum):
 		dirStr+="img/"
 
 	# resolution
-	dirStr+="size_"+str(cellDim)+"/"
+	dirStr+="res_"+str(ringSize*numIterations)+"/"
 
 	# Create Directory for picture save if doesn't exist
 	try:
@@ -147,7 +165,7 @@ def main(ruleNum):
 	# get directory to print image to
 	dirStr = generateImgDirectory(ruleNum)
 
-	for r in range(cellDim):
+	for r in range(numIterations):
 		# draw rows
 		if(showPicture):
 			automatonDrawRow(grid[r],r)
@@ -167,38 +185,72 @@ def main(ruleNum):
 # Script to auto-generate 256 images 
 def generateRuleImages():
 	for i in range(256):
-		print i
+		debug(i)
 		main(i)
 
 # Finds the entropy of a given ruleId
-def findEntropy(ruleId):
-	grid=runAutomaton(ruleId)
+def findShannonEntropy(ruleId,arbitraryColumnId,grid):
 	blackCells=float(0)
 	whiteCells=float(0)
-	for row in grid:
-		blackCells = sum(row)+blackCells
+	totalCells = numIterations
 
-	whiteCells =(cellDim*cellDim)-blackCells
-
-	pA = whiteCells/(cellDim*cellDim)
-	pB = 1-pA
-	e = -(((blackCells*pA*math.log(pA,2))/math.log(2,2)))-((whiteCells*pB*math.log(pB,2)/math.log(2,2)))
+	# get num black cells
+	for r in range(numIterations):
+		blackCells = grid[r][arbitraryColumnId]+blackCells
 	
-	return e
+ 	# get num white cells
+	whiteCells = totalCells-blackCells
+	
+	# Probability that cell is a given color in a column
+	probWhite = whiteCells/(numIterations)
+	probBlack = 1-probWhite
+	if(probBlack==1):
+		#print "Rule "+str(ruleId)+" -- colID: "+str(arbitraryColumnId)+" -- Entropy: " + str(0)
+		return 0
+	if(probWhite==1):
+		#print "Rule "+str(ruleId)+" -- colID: "+str(arbitraryColumnId)+" -- Entropy: " + str(1)
+		return 1
+	
+	# Shannon Entropy formula
+	try:
+		e = -((probWhite*math.log(probWhite,2))+(probBlack*math.log(probBlack,2)))
+		#print "Rule "+str(ruleId)+" -- colID: "+str(arbitraryColumnId)+" -- Entropy: " + str(e)
+
+		return e
+	except ValueError:
+		print "Math error for rule #" + str(ruleId) + "."
+		
+		print "Total Cells: " + str(totalCells)
+
+		print "White Cells: " + str(whiteCells)
+		print "Black Cells: " + str(blackCells)
+
+		print "probWhite: " + str(probWhite)
+		print "probBlack: " + str(probBlack)
+
+	
+	
 
 # Find avg entropy of a given rule
-def findMeanEntropy(ruleId,numTimes):
-	values = []
-	for i in range(numTimes):
-		values.append(findEntropy(ruleId))
+def findMeanEntropy(ruleId,grid):
+	values = []	
+	for col in range(ringSize):
+		values.append(findShannonEntropy(ruleId,col,grid))
 	return (sum(values)/len(values))
 
 # Generates a report of all 256 entropies
 def generateEntropyReport():
-	file = open("entropy.txt", "w")
+	es = []
 	for rule in range(256):
-		entropy = findMeanEntropy(rule,50)
-		file.write(str(entropy)+"\n")
+		grid=runAutomaton(rule)	
+		ei = findMeanEntropy(rule,grid)
+		print "Rule #" + str(rule) +" avg e: "+ str(ei)
+		es.append(ei)
+
+	file = open("entropy.txt", "w")
+	for e in es:
+		file.write(str(e)+"\n")
 	file.close()
 
 main(110)
+#generateEntropyReport()

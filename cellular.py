@@ -10,16 +10,16 @@ import math
 from pygame.locals import *
 
 # Program Parameters	
-ringSize = 61
-numIterations = 500
+ringSize = 5
+numIterations = 5
 stepTime = 25
 randomlyGenerate = True
-cellPixelSize = 2
+cellPixelSize = 80
 stepDelay = False
-showPicture = True
-autoGenerate = False
+renderTimespace = True
+autoGenerate = True
 fixedRandom = True
-debugEnabled = True
+debugEnabled = False
 
 # Screen Initialization
 screen_height = cellPixelSize*numIterations
@@ -35,6 +35,11 @@ def debug(s):
 	if(debugEnabled):
 		print s
 
+def hamming_distance(s1, s2):
+    if len(s1) != len(s2):
+        raise ValueError("Undefined for sequences of unequal length")
+    return sum(ch1 != ch2 for ch1, ch2 in zip(s1, s2))
+
 # Randomly row w/ even distribution
 def getFirstRow():
 	# insert 10 0's and 1's, then shuffle them
@@ -46,7 +51,7 @@ def getFirstRow():
 
 	return row
 
-# Global Fixed Initial State (for more accurate avgs entropies...)
+# Global Fixed Initial State
 fixedRandomInitialState = getFirstRow()
 
 # Draws a row, given the row & rowId
@@ -125,6 +130,8 @@ def runAutomaton(ruleNum):
 		prevRow = row
 	return grid
 
+
+
 def generateImgDirectory(ruleNum):
 	dirStr = ""
 	if randomlyGenerate:
@@ -133,7 +140,7 @@ def generateImgDirectory(ruleNum):
 		dirStr+="img/"
 
 	# resolution
-	dirStr+="res_"+str(ringSize*numIterations)+"/"
+	dirStr+="res_"+str(ringSize)+"x"+str(numIterations)+"/"
 
 	# Create Directory for picture save if doesn't exist
 	try:
@@ -167,25 +174,29 @@ def main(ruleNum):
 
 	for r in range(numIterations):
 		# draw rows
-		if(showPicture):
+		if(renderTimespace):
 			automatonDrawRow(grid[r],r)
-			pygame.display.flip()
+			pygame.display.flip()	
+
+			# save image once done rendering
+			pygame.image.save(screen,dirStr)
 
 		# delay if step enabled
 		if(stepDelay): pygame.time.delay(stepTime)
 
-	# save image once done rendering
-	pygame.image.save(screen,dirStr)
+
+	
+
+
 	# run until exit
 	while running:			
 		 	for event in pygame.event.get():
 		 		if event.type == pygame.QUIT:
 		 			running=False
 
-# Script to auto-generate 256 images 
-def generateRuleImages():
+# Script to auto-generate 256 timespace diagram images 
+def generateAllTimespaceDiagrams():
 	for i in range(256):
-		debug(i)
 		main(i)
 
 # Finds the entropy of a given ruleId
@@ -248,9 +259,11 @@ def generateEntropyReport():
 		es.append(ei)
 
 	file = open("entropy.txt", "w")
+	file.write(str(fixedRandomInitialState)+"\n")
 	for e in es:
 		file.write(str(e)+"\n")
 	file.close()
 
-main(110)
+main(1)
 #generateEntropyReport()
+#generateAllTimespaceDiagrams()
